@@ -1,0 +1,11 @@
+ls
+cd ..
+cd /
+cd hw3
+path /bin /usr/bin
+pwd
+echo "Hello World"
+ls -la /tmp > tmp_output.txt
+mkdir new_folder
+rmdir new_folder
+cat runner.py & ls & grep -i "grsh" runner.py
