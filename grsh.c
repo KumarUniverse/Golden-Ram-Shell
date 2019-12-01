@@ -18,10 +18,20 @@ void set_path(char **args);
 
 const char *builtin_cmds[] = {"exit","cd","path"}; // array of strings.
 const void (*builtin_cmd_funcs[]) (char **) = {&exit_grsh, &cd, &set_path}; // array of pointers to functions.
-char *path = "/bin"; // Default path to executable commands.
+//char *path = "/bin"; // Default path to executable commands.
+char path[1024] = "/bin"; // Default path to executable commands.
 const char error_message[30] = "An error has occurred\n";
 const char error_message1[30] = "An erro1 has occurred\n";
 const char error_message2[30] = "An erro2 has occurred\n";
+
+// A test fn used to print a string array.
+void print_string_array(char **arr)
+{
+  for (int i = 0; i <= sizeof(arr)/sizeof(arr[0]); ++i)
+  {
+    printf("args array: [%s]\n", arr[i]);
+  }
+}
 
 // A fn that is used to exit the shell.
 void exit_grsh(char **args)
@@ -41,7 +51,7 @@ void cd(char **args)
   int status = chdir(cd_path);
   if (status != 0)
   { //printf("This should not print %d", status);
-    write(STDERR_FILENO, error_message2, strlen(error_message2));
+    write(STDERR_FILENO, error_message, strlen(error_message));
     exit(1);
   }
 }
@@ -49,35 +59,42 @@ void cd(char **args)
 // A fn that is used to overwrite the existing path.
 void set_path(char **args)
 {
+  //printf(args[1]);
   if (args[1] == NULL)
   { // If no arguments are passed, set path to be empty.
-    path = "";
+    memset(path, 0, sizeof(path)); //path = "";
   }
   else
-  {
-    path = ""; // Reset the path to overwrite.
+  { //printf("in else");
+    memset(path, 0, sizeof(path)); //path = ""; // Reset the path to overwrite.
     int i = 1;
-    while (args[i] != NULL)
+    if (args[i] != NULL)
     {
-      if (args[i] == NULL)
-      {
-        break;
-      }
-      else
-      { // Paths are separated by colons (:).
-        strcat(path, strcat(":", args[i]));
-      }
+      strcat(path, args[i]);
       ++i;
     }
-  }
-}
+    while (args[i] != NULL)
+    {
+      // Paths are separated by colons (:).
+      // path = realloc(path, strlen(path) + strlen(":") + strlen(args[i]));
+      strcat(path, ":");
+      strcat(path, args[i]);
 
-// A test fn used to print an array.
-void print_array(char **arr)
-{
-  for (int i = 0; i <= sizeof(arr)/sizeof(arr[0]); ++i)
-  {
-    printf("%s\n", arr[i]);
+      // char colon = ':';
+      // if(strcmp(path, "") != 0)
+      // {
+      //   strncat(path, &colon, 1);
+      // }
+      // char *arg = args[i];
+
+      // for (int j = 0; j < sizeof(arg)/sizeof(arg[0]); ++j)
+      // {
+      //   strncat(path, &arg[j], 1);
+      // }
+
+      ++i;
+    }
+    //printf("%s\n", path);
   }
 }
 
@@ -108,7 +125,7 @@ int launch_process(char **args)
 {
   pid_t pid;
   int status;
-  //print_array(args); printf("in launch");
+  print_string_array(args); printf("path: %s\n", path);
 
   pid = fork(); printf("ak1");
   if (pid == 0)
@@ -116,7 +133,7 @@ int launch_process(char **args)
     printf("ak2");
     if (execv(path, args) == -1)
     { printf("ak3");
-      write(STDERR_FILENO, error_message, strlen(error_message)); // Forking error.
+      write(STDERR_FILENO, error_message1, strlen(error_message1)); // Forking error.
     }
     exit(EXIT_FAILURE);
   } // Fork failed.
@@ -150,7 +167,7 @@ int execute_cmd(char **cmd_arr)
   for (i = 0; i < sizeof(builtin_cmds)/sizeof(builtin_cmds[0]); ++i)
   { //printf("in for");
     if (strcmp(cmd_arr[0], builtin_cmds[i]) == 0)
-    {
+    { //printf("in if\n");
       (*builtin_cmd_funcs[i])(cmd_arr);
       return 0;
     }
@@ -163,11 +180,12 @@ int execute_cmd(char **cmd_arr)
 int execute_cmds(char *cmds)
 {
   char *cmd_token = strtok(cmds, "&"); // Split line into distinct commands.
-  char *cmd_arg_token = strtok(cmd_token, " \t\n"); // Split command into its args.
+
   while (cmd_token != NULL)
   {
+    char *cmd_arg_token = strtok(cmd_token, " \t\n"); // Split command into its args.
     char **cmd_arr = parse_cmd(cmd_arg_token);
-    //print_array(cmd_arr);
+    //print_string_array(cmd_arr);
     execute_cmd(cmd_arr);
     free(cmd_arr);
     cmd_token = strtok(NULL, "&");
