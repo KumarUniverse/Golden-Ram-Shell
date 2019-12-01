@@ -18,13 +18,12 @@ void set_path(char **args);
 
 const char *builtin_cmds[] = {"exit","cd","path"}; // array of strings.
 const void (*builtin_cmd_funcs[]) (char **) = {&exit_grsh, &cd, &set_path}; // array of pointers to functions.
-//char *path = "/bin"; // Default path to executable commands.
+//char *path = "/bin"; // Gives segmentation fault error!
 char path[16384] = "/bin"; // Default path to executable commands.
 const char error_message[30] = "An error has occurred\n";
-const char error_message1[30] = "An erro1 has occurred\n";
-const char error_message2[30] = "An erro2 has occurred\n";
+//const char error_message1[30] = "An erro1 has occurred\n";
 
-// A test fn used to print a string array.
+// A debugging fn used to print a string array.
 void print_string_array(char **arr)
 {
   for (int i = 0; i <= sizeof(arr)/sizeof(arr[0]); ++i)
@@ -50,7 +49,7 @@ void cd(char **args)
   }
   int status = chdir(cd_path);
   if (status != 0)
-  { //printf("This should not print %d", status);
+  { // This should not print.
     write(STDERR_FILENO, error_message, strlen(error_message));
     exit(EXIT_FAILURE);
   }
@@ -59,13 +58,12 @@ void cd(char **args)
 // A fn that is used to overwrite the existing path.
 void set_path(char **args)
 {
-  //printf(args[1]);
   if (args[1] == NULL)
   { // If no arguments are passed, set path to be empty.
     memset(path, 0, sizeof(path)); //path = "";
   }
   else
-  { //printf("in else");
+  {
     memset(path, 0, sizeof(path)); //path = ""; // Reset the path to overwrite.
 
     strcat(path, args[1]);
@@ -73,25 +71,10 @@ void set_path(char **args)
     while (args[i] != NULL)
     {
       // Paths are separated by colons (:).
-      // path = realloc(path, strlen(path) + strlen(":") + strlen(args[i]));
       strcat(path, ":");
       strcat(path, args[i]);
-
-      // char colon = ':';
-      // if(strcmp(path, "") != 0)
-      // {
-      //   strncat(path, &colon, 1);
-      // }
-      // char *arg = args[i];
-
-      // for (int j = 0; j < sizeof(arg)/sizeof(arg[0]); ++j)
-      // {
-      //   strncat(path, &arg[j], 1);
-      // }
-
       ++i;
     }
-    //printf("%s\n", path);
   }
 }
 
@@ -101,13 +84,11 @@ char** parse_cmd(char *cmd_args)
 {
   int num_args = 8; // Number of arguments in the command.
   char **cmd_arr = (char **) malloc(num_args * sizeof(char *)); // An array of strings.
-  //char *cmd_arr[100];
   int i = 0;
   char *cmd_arg_token = strtok(cmd_args, " \t\n");
   while (cmd_arg_token != NULL)
   {
     cmd_arr[i++] = cmd_arg_token;
-    //strcpy(cmd_arr[i++], cmd_arg_token);
     cmd_arg_token = strtok(NULL, " \t\n");
 
     if (i == num_args)
@@ -124,18 +105,18 @@ char** parse_cmd(char *cmd_args)
 int launch_process(char **args)
 {
   pid_t pid;
-  int status;
   char local_path[16384] = ""; // Local copy of path.
-  char *exec_file = args[0];
-  char *exec_path = NULL; // Path to the executable file.
-
   strcpy(local_path, path);
+  char exec_file[1024]; // Name of the executable file.
+  strcpy(exec_file, args[0]);
+  char exec_path[4096]; // Path to the executable file.
+
   //printf("shell path: %s\n", path);
   //printf("local path: %s\n", local_path);
   char *path_token = strtok(local_path, ":");
   while(path_token != NULL)
   {
-    exec_path = path_token;
+    strcpy(exec_path, path_token);
     strcat(exec_path, "/");
     strcat(exec_path, exec_file);
     //printf("exec path: %s\n", exec_path);
@@ -145,15 +126,9 @@ int launch_process(char **args)
       //printf("%s\n", args[0]);
       break;
     }
-    exec_path = NULL;
+    memset(exec_path, 0, sizeof(exec_path)); // exec_path = "";
     path_token = strtok(NULL, ":");
   }
-
-  // For debugging:
-  // if (strstr(exec_path, "//") != NULL)
-  // {
-  //   exit(0);
-  // }
 
   if (exec_path == NULL)
   { // If no path to executable exists, throw error.
@@ -171,16 +146,15 @@ int launch_process(char **args)
   { // Child process.
     //if (execv(exec_path, args) == -1)
     execv(exec_path, args);
-
     // If execv returns, we know it failed to execute.
-    //printf("EXIT_FAILURE\n");
-    //write(STDERR_FILENO, error_message, strlen(error_message)); // Forking error.
-    exit(EXIT_FAILURE);
+    write(STDERR_FILENO, error_message, strlen(error_message));
+    _exit(EXIT_FAILURE);
   }
   else
   { // Parent process.
+    int status; //printf("in parent\n");
     do
-    { //printf("ak5");
+    {
       waitpid(pid, &status, WUNTRACED);
     } while (!WIFEXITED(status) && !WIFSIGNALED(status));
   }
@@ -220,12 +194,9 @@ int execute_cmds(char *cmds)
   strcpy(cmds_arr, cmds);
   char *cmd_token = strtok(cmds_arr, "&"); // Split line into distinct commands.
   while (cmd_token != NULL)
-  { //printf("in while\n");
+  {
     //printf("cmd_token: %s\n", cmd_token);
-    //char cmd[1024];
     char **cmd_arr = NULL; // Array of command arguments.
-    //strcpy(cmd, cmd_token);
-    //if (strcmp(cmd, "//") > 0) return 0;
     cmd_arr = parse_cmd(cmd_token);
     //print_string_array(cmd_arr);
     execute_cmd(cmd_arr);
