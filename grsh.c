@@ -2,7 +2,7 @@
  * Filename: grsh.c
  * Author: Akash Kumar
  * Class: CSC 331
- * Date: 11/27/2019
+ * Date: 11/30/2019
  */
 #include <stdlib.h>
 #include <stdio.h>
@@ -20,19 +20,29 @@ const char *builtin_cmds[] = {"exit","cd","path"}; // array of strings.
 const void (*builtin_cmd_funcs[]) (char **) = {&exit_grsh, &cd, &set_path}; // array of pointers to functions.
 char *path = "/bin"; // Default path to executable commands.
 const char error_message[30] = "An error has occurred\n";
+const char error_message1[30] = "An erro1 has occurred\n";
+const char error_message2[30] = "An erro2 has occurred\n";
 
 // A fn that is used to exit the shell.
 void exit_grsh(char **args)
-{
+{ printf("in exit");
   exit(0);
 }
 
 // A fn that is used to change directories.
 void cd(char **args)
 {
-  if (args[1] == NULL || chdir(args[1]) != 0)
+  char *cd_path = args[1];
+  if (cd_path == NULL)
   {
     write(STDERR_FILENO, error_message, strlen(error_message));
+    exit(1);
+  }
+  int status = chdir(cd_path);
+  if (status != 0)
+  { //printf("This should not print %d", status);
+    write(STDERR_FILENO, error_message2, strlen(error_message2));
+    exit(1);
   }
 }
 
@@ -62,24 +72,13 @@ void set_path(char **args)
   }
 }
 
-// DOES NOT WORK!
-// A fn that takes a line of input and splits
-// it into distinct commands.
-// char** parse_input(char *line)
-// {
-//   // Separate the argument into commands.
-//   char *cmd_token = strtok(line, "&");
-//   // Separate the commands into their individual arguments.
-//   char **parsed_cmds; // String tokens within tokens.
-//   int i = 0;
-//   while (cmd_token != NULL)
-//   {
-//     parsed_cmds[i++] = strtok(cmd_token, " ");
-//     cmd_token = strtok(NULL, "&");
-//   }
-
-//   return **parsed_cmds;
-// }
+void print_array(char **arr)
+{
+  for (int i = 0; i <= sizeof(arr)/sizeof(arr[0]); ++i)
+  {
+    printf("%s\n", arr[i]);
+  }
+}
 
 // A fn that takes a string command and
 // breaks it up into its individual arguments.
@@ -91,7 +90,7 @@ char** parse_cmd(char *cmd_arg_token)
   while (cmd_arg_token != NULL)
   {
     cmd_arr[i++] = cmd_arg_token;
-    cmd_arg_token = strtok(NULL, " ");
+    cmd_arg_token = strtok(NULL, " \t\n");
 
     if (i == num_args-1)
     { // If array becomes full, double the memory size of the array.
@@ -108,24 +107,26 @@ int launch_process(char **args)
 {
   pid_t pid;
   int status;
+  //print_array(args); printf("in launch");
 
-  pid = fork();
+  pid = fork(); printf("ak1");
   if (pid == 0)
   { // Child process.
+    printf("ak2");
     if (execv(path, args) == -1)
-    {
-      perror("grsh"); // Forking error.
+    { printf("ak3");
+      write(STDERR_FILENO, error_message, strlen(error_message)); // Forking error.
     }
     exit(EXIT_FAILURE);
   } // Fork failed.
   else if (pid < 0)
   {
-    perror("grsh"); // Forking error.
+    write(STDERR_FILENO, error_message, strlen(error_message)); // Forking error.
   }
   else
   { // Parent process.
     do
-    {
+    { printf("ak5");
       waitpid(pid, &status, WUNTRACED);
     } while (!WIFEXITED(status) && !WIFSIGNALED(status));
   }
@@ -146,7 +147,7 @@ int execute_cmd(char **cmd_arr)
   // Check if the command is one of the builtin commands: exit, cd, path
   // If yes, call the corresponding builtin function for that command.
   for (i = 0; i < sizeof(builtin_cmds)/sizeof(builtin_cmds[0]); ++i)
-  {
+  { printf("in for");
     if (strcmp(cmd_arr[0], builtin_cmds[i]) == 0)
     {
       (*builtin_cmd_funcs[i])(cmd_arr);
@@ -161,11 +162,11 @@ int execute_cmd(char **cmd_arr)
 int execute_cmds(char *cmds)
 {
   char *cmd_token = strtok(cmds, "&"); // Split line into distinct commands.
-  char *cmd_arg_token = strtok(cmd_token, " "); // Split command into its args.
-
+  char *cmd_arg_token = strtok(cmd_token, " \t"); // Split command into its args.
   while (cmd_token != NULL)
   {
     char **cmd_arr = parse_cmd(cmd_arg_token);
+    //print_array(cmd_arr);
     execute_cmd(cmd_arr);
     free(cmd_arr);
     cmd_token = strtok(NULL, "&");
@@ -189,6 +190,7 @@ void interactive_mode()
   {
     //cmds = parse_input(line);
     execute_cmds(line);
+    printf("grsh> ");
   }
 
   exit(0);

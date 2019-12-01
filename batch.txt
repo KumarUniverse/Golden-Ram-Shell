@@ -1,7 +1,6 @@
 ls
-cd ..
 cd /
-cd hw3
+cd /home/student/csc331/hw/hw3
 path /bin /usr/bin
 pwd
 echo "Hello World"
