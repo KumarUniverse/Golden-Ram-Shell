@@ -25,7 +25,7 @@ const char error_message2[30] = "An erro2 has occurred\n";
 
 // A fn that is used to exit the shell.
 void exit_grsh(char **args)
-{ printf("in exit");
+{
   exit(0);
 }
 
@@ -72,6 +72,7 @@ void set_path(char **args)
   }
 }
 
+// A test fn used to print an array.
 void print_array(char **arr)
 {
   for (int i = 0; i <= sizeof(arr)/sizeof(arr[0]); ++i)
@@ -147,7 +148,7 @@ int execute_cmd(char **cmd_arr)
   // Check if the command is one of the builtin commands: exit, cd, path
   // If yes, call the corresponding builtin function for that command.
   for (i = 0; i < sizeof(builtin_cmds)/sizeof(builtin_cmds[0]); ++i)
-  { printf("in for");
+  { //printf("in for");
     if (strcmp(cmd_arr[0], builtin_cmds[i]) == 0)
     {
       (*builtin_cmd_funcs[i])(cmd_arr);
@@ -162,7 +163,7 @@ int execute_cmd(char **cmd_arr)
 int execute_cmds(char *cmds)
 {
   char *cmd_token = strtok(cmds, "&"); // Split line into distinct commands.
-  char *cmd_arg_token = strtok(cmd_token, " \t"); // Split command into its args.
+  char *cmd_arg_token = strtok(cmd_token, " \t\n"); // Split command into its args.
   while (cmd_token != NULL)
   {
     char **cmd_arr = parse_cmd(cmd_arg_token);
