@@ -2,33 +2,41 @@
  * Filename: grsh.c
  * Author: Akash Kumar
  * Class: CSC 331
- * Date: 11/30/2019
+ * Date: 12/05/2019
  */
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <sys/wait.h>
+
+#define DELIMITERS " \t\v\n\r"
 
 // Builtin functions:
 void exit_grsh(char **args);
 void cd(char **args);
 void set_path(char **args);
 
-const char *builtin_cmds[] = {"exit","cd","path"}; // array of strings.
+// Global variables:
+const char *builtin_cmds[3] = {"exit","cd","path"}; // array of strings.
 const void (*builtin_cmd_funcs[]) (char **) = {&exit_grsh, &cd, &set_path}; // array of pointers to functions.
-//char *path = "/bin"; // Gives segmentation fault error!
-char path[16384] = "/bin"; // Default path to executable commands.
 const char error_message[30] = "An error has occurred\n";
-//const char error_message1[30] = "An erro1 has occurred\n";
+char path[16384] = "/bin"; // Default path to executables.
+char *cmd[20] = {[0 ... 19] = NULL}; // command to be executed.
+int num_args = 0; // Number of arguments in cmd.
 
 // A debugging fn used to print a string array.
 void print_string_array(char **arr)
 {
-  for (int i = 0; i <= sizeof(arr)/sizeof(arr[0]); ++i)
+  static int calls = 0; // number of times the function gets called.
+  calls++;
+  for (int i = 0; i < sizeof(arr)/sizeof(arr[0]); ++i)
   {
-    printf("parsed args array: [%s]\n", arr[i]);
+    printf("cmd array, call %d: [%s]\n", calls, arr[i]);
   }
 }
 
@@ -45,13 +53,10 @@ void cd(char **args)
   if (cd_path == NULL)
   {
     write(STDERR_FILENO, error_message, strlen(error_message));
-    exit(EXIT_FAILURE);
   }
-  int status = chdir(cd_path);
-  if (status != 0)
-  { // This should not print.
+  if (chdir(cd_path) != 0)
+  {
     write(STDERR_FILENO, error_message, strlen(error_message));
-    exit(EXIT_FAILURE);
   }
 }
 
@@ -65,12 +70,10 @@ void set_path(char **args)
   else
   {
     memset(path, 0, sizeof(path)); //path = ""; // Reset the path to overwrite.
-
-    strcat(path, args[1]);
+    strcpy(path, args[1]);
     int i = 2;
     while (args[i] != NULL)
-    {
-      // Paths are separated by colons (:).
+    { // Paths are separated by colons (:).
       strcat(path, ":");
       strcat(path, args[i]);
       ++i;
@@ -78,81 +81,45 @@ void set_path(char **args)
   }
 }
 
-// A fn that takes a string command and
-// breaks it up into its individual arguments.
-char** parse_cmd(char *cmd_args)
-{
-  int num_args = 8; // Number of arguments in the command.
-  char **cmd_arr = (char **) malloc(num_args * sizeof(char *)); // An array of strings.
-  int i = 0;
-  char *cmd_arg_token = strtok(cmd_args, " \t\n");
-  while (cmd_arg_token != NULL)
-  {
-    cmd_arr[i++] = cmd_arg_token;
-    cmd_arg_token = strtok(NULL, " \t\n");
-
-    if (i == num_args)
-    { // If array becomes full, double the memory size of the array.
-      num_args *= 2;
-      cmd_arr = realloc(cmd_arr, num_args * sizeof(char *));
-    }
-  }
-
-  return cmd_arr;
-}
-
 // A fn that launches new processes.
-int launch_process(char **args)
+int launch_process()
 {
   pid_t pid;
-  char local_path[16384] = ""; // Local copy of path.
-  strcpy(local_path, path);
-  char exec_file[1024]; // Name of the executable file.
-  strcpy(exec_file, args[0]);
   char exec_path[4096]; // Path to the executable file.
+  char *save_ptr;
+  char *path_token;
 
-  //printf("shell path: %s\n", path);
-  //printf("local path: %s\n", local_path);
-  char *path_token = strtok(local_path, ":");
+  path_token = strtok_r(strdup(path), ":", &save_ptr);
   while(path_token != NULL)
   {
     strcpy(exec_path, path_token);
     strcat(exec_path, "/");
-    strcat(exec_path, exec_file);
-    //printf("exec path: %s\n", exec_path);
+    strcat(exec_path, cmd[0]);
     if (access(exec_path, X_OK) == 0)
-    { //printf("access ok!\n");
-      //printf("exec_path: %s\n", exec_path);
-      //printf("%s\n", args[0]);
+    { //printf("Access ok!\n");
       break;
     }
-    memset(exec_path, 0, sizeof(exec_path)); // exec_path = "";
-    path_token = strtok(NULL, ":");
-  }
 
-  if (exec_path == NULL)
-  { // If no path to executable exists, throw error.
-    write(STDERR_FILENO, error_message, strlen(error_message));
-    exit(EXIT_FAILURE);
+    memset(exec_path, 0, sizeof(exec_path)); // exec_path = "";
+    path_token = strtok_r(NULL, ":", &save_ptr);
   }
 
   pid = fork();
   if (pid < 0)
   { // Fork failed.
-    write(STDERR_FILENO, error_message, strlen(error_message)); // Forking error.
+    write(STDERR_FILENO, error_message, strlen(error_message));
     exit(EXIT_FAILURE);
   }
   else if (pid == 0)
   { // Child process.
-    //if (execv(exec_path, args) == -1)
-    execv(exec_path, args);
-    // If execv returns, we know it failed to execute.
+    execv(exec_path, cmd); // Execute the command.
+    // If execv returns, we know the command failed to execute.
     write(STDERR_FILENO, error_message, strlen(error_message));
-    _exit(EXIT_FAILURE);
+    exit(EXIT_FAILURE);
   }
   else
   { // Parent process.
-    int status; //printf("in parent\n");
+    int status;
     do
     {
       waitpid(pid, &status, WUNTRACED);
@@ -163,45 +130,118 @@ int launch_process(char **args)
 }
 
 // A fn used to execute a single command.
-int execute_cmd(char **cmd_arr)
-{ //printf("launching process\n");
-  int i;
-
-  if (cmd_arr[0] == NULL)
+int execute_cmd()
+{
+  if (num_args == 0)
   { // No command was passed.
-    return 1;
+    return 0;
   }
 
   // Check if the command is one of the builtin commands: exit, cd, path
   // If yes, call the corresponding builtin function for that command.
-  for (i = 0; i < sizeof(builtin_cmds)/sizeof(builtin_cmds[0]); ++i)
-  { //printf("in for");
-    if (strcmp(cmd_arr[0], builtin_cmds[i]) == 0)
-    { //printf("in if\n");
-      (*builtin_cmd_funcs[i])(cmd_arr);
-      return 0;
+  for (int i = 0; i < sizeof(builtin_cmds)/sizeof(builtin_cmds[0]); ++i)
+  {
+    if (strcmp(cmd[0], builtin_cmds[i]) == 0)
+    {
+      (*builtin_cmd_funcs[i])(cmd);
+      return 1; // Execution success.
     }
   }
-  //print_string_array(cmd_arr);
 
-  return launch_process(cmd_arr);
+  return launch_process();
 }
 
 // A fn used to execute multiple commands in parallel.
-int execute_cmds(char *cmds)
+int execute_cmds(char *input)
 {
-  char cmds_arr[1024];
-  strcpy(cmds_arr, cmds);
-  char *cmd_token = strtok(cmds_arr, "&"); // Split line into distinct commands.
-  while (cmd_token != NULL)
+  int exec_status = 0; // bool for status of execution. 0 = False, 1 = True.
+  int output, error, save_output, save_error; // For redirection.
+  char *save_ptr;
+  char *token;
+
+  token = strtok_r(strdup(input), DELIMITERS, &save_ptr);
+  while (token != NULL)
   {
-    //printf("cmd_token: %s\n", cmd_token);
-    char **cmd_arr = NULL; // Array of command arguments.
-    cmd_arr = parse_cmd(cmd_token);
-    //print_string_array(cmd_arr);
-    execute_cmd(cmd_arr);
-    free(cmd_arr);
-    cmd_token = strtok(NULL, "&");
+    if (strcmp(token, "&") == 0) // Parallel command execution.
+    {
+      exec_status = execute_cmd();
+    }
+    else if (strcmp(token, ">") == 0) // Redirection.
+    {
+      token = strtok_r(NULL, DELIMITERS, &save_ptr); // Filename.
+      // Open output file.
+      output = open(token, O_RDWR|O_CREAT|O_APPEND, 0600);
+      if (output == -1)
+      {
+        write(STDERR_FILENO, error_message, strlen(error_message));
+        exit(EXIT_FAILURE);
+      }
+      // Open error file.
+      error = open(token, O_RDWR|O_CREAT|O_APPEND, 0600);
+      if (error == -1)
+      {
+        write(STDERR_FILENO, error_message, strlen(error_message));
+        exit(EXIT_FAILURE);
+      }
+
+      // Save copies of the file descriptors.
+      save_output = dup(fileno(stdout));
+      save_error = dup(fileno(stderr));
+
+      // Redirect the outputs and errors to stdout and stderr.
+      if (dup2(output, fileno(stdout)) == -1)
+      {
+        write(STDERR_FILENO, error_message, strlen(error_message));
+        exit(EXIT_FAILURE);
+      }
+      if (dup2(error, fileno(stdout)) == -1)
+      {
+        write(STDERR_FILENO, error_message, strlen(error_message));
+        exit(EXIT_FAILURE);
+      }
+
+      exec_status = execute_cmd();
+
+      // Flush the streams and close them.
+      fflush(stdout); close(output);
+      fflush(stderr); close(error);
+
+      // Reset to the original file descriptors.
+      dup2(save_output, fileno(stdout));
+      dup2(save_error, fileno(stderr));
+
+      // Close the file descriptor copies.
+      close(save_output);
+      close(save_error);
+    }
+    else // Build command.
+    {
+      cmd[num_args++] = token;
+    }
+
+    token = strtok_r(NULL, DELIMITERS, &save_ptr); // Advance to next token.
+
+    // Cleanup after command execution.
+    if (exec_status)
+    {
+      exec_status = 0; // Reset bool.
+      memset(cmd, 0, sizeof(cmd)); // Clear command arguments.
+      num_args = 0;
+    }
+  }
+
+  // Execute the last command.
+  if (num_args > 0)
+  {
+    exec_status = execute_cmd();
+  }
+
+  // Cleanup after command execution.
+  if (exec_status)
+  {
+    exec_status = 0; // Reset bool.
+    memset(cmd, 0, sizeof(cmd)); // Clear command arguments.
+    num_args = 0;
   }
 
   return 0;
@@ -215,17 +255,13 @@ void interactive_mode()
   size_t len = 0;      // Length of the input line.
   ssize_t read;        // Read status of the input line.
   char *line = NULL;   // The input line.
-  //char **cmds;
 
   printf("grsh> ");
   while ((read = getline(&line, &len, stdin)) != -1)
   {
-    //cmds = parse_input(line);
     execute_cmds(line);
     printf("grsh> ");
   }
-
-  exit(0);
 }
 
 // In batch mode, the shell reads commands from a batch file and executes them.
@@ -234,22 +270,25 @@ void batch_mode(char *filename)
   size_t len = 0;      // Length of the input line.
   ssize_t read;        // Read status of the input line.
   char *line = NULL;   // The input line.
-  //char **cmds;
   FILE *fptr = fopen(filename, "r"); // Open file in read mode.
+
+  if (!fptr)
+  {
+    write(STDERR_FILENO, error_message, strlen(error_message));
+    exit(1);
+  }
 
   while((read = getline(&line, &len, fptr)) != -1)
   {
-    //cmds = parse_input(line);
     execute_cmds(line);
   }
 
-  exit(0);
+  fclose(fptr);
 }
 
 // Program execution starts here.
 int main(int argc, char *argv[])
-{
-  // If no arguments are passed, use interactive mode.
+{ // If no arguments are passed, use interactive mode.
   // Else use batch mode with the specified batch file.
   if (argc < 2)
   {
