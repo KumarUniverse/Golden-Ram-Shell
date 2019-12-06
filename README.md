@@ -1,5 +1,6 @@
 ﻿# Golden-Ram-Shell
  A simple implementation of the Linux Bash shell.
+ ![Grsh Shell Demonstration](https://github.com/KumarUniverse/Golden-Ram-Shell/blob/master/grsh-shell-example.png)
 
 ## Built-in Commands
 - **exit** - used to exit the grsh shell.
@@ -18,19 +19,4 @@
 - waitpid()
 - exit()
 - chdir()
-- write()
-- fopen()
-- fclose()
-- open()
-- close()
-- fileno()
-- dup()
-- dup2()
 - strtok_r()
-- strdup()
-- strcpy()
-- strcat()
-- strcmp()
-- strlen()
-- memset()
-- sizeof()
