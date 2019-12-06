@@ -1,5 +1,5 @@
-﻿# Golden-Ram-Shell
- A simple implementation of the Linux Bash shell.
+﻿# golden-ram-shell
+ A simple C implementation of a Linux shell.
  ![Grsh Shell Demonstration](https://github.com/KumarUniverse/Golden-Ram-Shell/blob/master/grsh-shell-example.png)
 
 ## Built-in Commands
