@@ -86,6 +86,7 @@ int launch_process()
 {
   pid_t pid;
   char exec_path[4096]; // Path to the executable file.
+  memset(exec_path, 0, sizeof(exec_path));
   char *save_ptr;
   char *path_token;
 
@@ -102,6 +103,12 @@ int launch_process()
 
     memset(exec_path, 0, sizeof(exec_path)); // exec_path = "";
     path_token = strtok_r(NULL, ":", &save_ptr);
+  }
+
+  if (strcmp(exec_path, "") == 0)
+  { // Executable not found.
+    write(STDERR_FILENO, error_message, strlen(error_message));
+    return 1;
   }
 
   pid = fork();
