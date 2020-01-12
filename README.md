@@ -8,9 +8,11 @@
 - **path** - used to set the search path of the shell.
 
 ## Supports
-- Basic Linux commands like `ls`, `cat`, `grep`, `echo`, `cal`, etc.
+- Linux commands like `ls`, `cat`, `grep`, `echo`, `cal`, etc.
 - Parallel execution
 - Redirection
+- Interactive mode
+- Batch mode
 
 ## Key C Functions Used
 - access()
