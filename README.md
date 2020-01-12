@@ -1,4 +1,4 @@
-﻿# golden-ram-shell
+﻿# Golden Ram Shell
  A simple C implementation of a Linux shell.
  ![Grsh Shell Demonstration](https://github.com/KumarUniverse/Golden-Ram-Shell/blob/master/grsh-shell-example.png)
 
